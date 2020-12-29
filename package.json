@@ -1,0 +1,37 @@
+{
+  "name": "mongodb-intro-workshop",
+  "version": "1.0.0",
+  "description": "Assembler School: MongoDB Intro Workshop",
+  "keywords": [
+    "mongodb"
+  ],
+  "author": "Dani Lucaci <dani@assemblerschool.com>",
+  "license": "MIT",
+  "private": "true",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assembler-school/mongodb-intro-workshop.git"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.12.10",
+    "@babel/core": "^7.12.10",
+    "@babel/preset-env": "^7.12.11",
+    "@types/jest": "^26.0.19",
+    "babel-eslint": "^10.1.0",
+    "babel-jest": "^26.6.3",
+    "eslint": "^7.15.0",
+    "jest": "^26.6.3",
+    "nodemon": "^2.0.6",
+    "prettier": "2.2.1",
+    "supertest": "^6.0.1"
+  }
+}
