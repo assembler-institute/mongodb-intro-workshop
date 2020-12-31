@@ -24,6 +24,8 @@ In this workshop you will learn how to build backend apps with Node.js, MongoDB 
 - [Mongoose Schema Hooks](#mongoose-schema-hooks)
 - [Safer Way of Storing Passwords](#safer-way-of-storing-passwords)
 - [Mongoose Schema Exercises](#mongoose-schema-exercises)
+- [CRUD Methods With Mongoose](#crud-methods-with-mongoose)
+- [CRUD Methods With Mongoose Exercises](#crud-methods-with-mongoose-exercises)
 
 ## Getting Started
 
@@ -1720,6 +1722,608 @@ Open the files indicated bellow and read the instructions and requirements of th
 - **Test suite:** "2. create the 'User' model following the schema requirements"
 - **Test suite:** "3. encrypt the password before storing it in the database"
 - **Test suite:** "4. add a 'comparePassword' method to the 'User' schema"
+
+## CRUD Methods With Mongoose
+
+Mongoose provides several methods for querying, modifying and removing documents.
+
+- `Model.find()`
+- `Model.findById()`
+- `Model.findOne()`
+- `Model.findByIdAndDelete()`
+- `Model.findByIdAndRemove()`
+- `Model.findByIdAndUpdate()`
+- `Model.findOneAndDelete()`
+- `Model.findOneAndRemove()`
+- `Model.findOneAndReplace()`
+- `Model.findOneAndUpdate()`
+- `Model.replaceOne()`
+- `Model.updateMany()`
+- `Model.updateOne()`
+- `Model.deleteMany()`
+- `Model.deleteOne()`
+
+### Query Methods
+
+To find documents with mongoose we can use one of the query methods:
+
+- `Model.find()`
+- `Model.findById()`
+- `Model.findOne()`
+
+They can be used with regular MongoDB filters similar to the ones we have seen before.
+
+#### `Model.findOne()`
+
+```js
+const { logger } = require("../config/config");
+const db = require("../models");
+const connect = require("../db/connect");
+const { seedUsers } = require("../db/seed");
+
+async function queries() {
+  // connect to the db first
+  await connect();
+  // insert some users
+  await seedUsers();
+
+  const user = await db.User.findOne({ firstName: "Margaret" });
+
+  logger.debug(user);
+}
+
+queries();
+```
+
+The `findOne()` method returns a single document if it passes the filter or `null` if no results are found.
+
+```bash
+{
+  speaks: [ 'catalan', 'spanish' ],
+  _id: 5ff0385e93040fec99749cc9,
+  firstName: 'Margaret',
+  lastName: 'Watkins',
+  email: 'edde@kodbi.eh',
+  password: '$2b$12$N3MIKF8C/s7pfAW/X7MJpeHE/YR2Q6Rc6Rmj9CrM2sVt7NH1w2k9q',
+  createdAt: 2021-01-02T09:09:50.419Z,
+  updatedAt: 2021-01-02T09:09:50.419Z,
+  __v: 0
+}
+```
+
+#### `Model.findById()`
+
+The `.findById()` method accepts as a filter a string with the `_id` of a document.
+
+This method is the same as using `Model.findOne({ _id: "document_id" })`:
+
+```js
+const user_1 = await db.User.findOne({ _id: users[0]._id });
+const user_2 = await db.User.findById(users[0]._id);
+```
+
+```js
+const users = await db.User.find({});
+const user_1 = await db.User.findById(users[0]._id);
+
+logger.debug(users);
+logger.debug(user_1);
+```
+
+```bash
+[
+  {
+    speaks: [ 'english', 'spanish' ],
+    _id: 5ff039a465846ffa4bce9483,
+    firstName: 'Alta',
+    lastName: 'Harris',
+    email: 'cuk@boeli.gn',
+    password: '$2b$12$Ll0T6Ue.QXz5ukEwpTdNOe4hTwsIK.fTv/QeLUuNb0bqnOhvAAL02',
+    createdAt: 2021-01-02T09:15:16.989Z,
+    updatedAt: 2021-01-02T09:15:16.989Z,
+    __v: 0
+  },
+  ...
+]
+
+{
+  speaks: [ 'english', 'spanish' ],
+  _id: 5ff039a465846ffa4bce9483,
+  firstName: 'Alta',
+  lastName: 'Harris',
+  email: 'cuk@boeli.gn',
+  password: '$2b$12$Ll0T6Ue.QXz5ukEwpTdNOe4hTwsIK.fTv/QeLUuNb0bqnOhvAAL02',
+  createdAt: 2021-01-02T09:15:16.989Z,
+  updatedAt: 2021-01-02T09:15:16.989Z,
+  __v: 0
+}
+```
+
+#### Queries are Not Promises
+
+Mongoose queries are not promises. They have a `.then()` function for co and `async`/`await` as a convenience. However, unlike promises, calling a query's `.then()` can execute the query multiple times.
+
+In order to convert the queries to a Spec Compliant Promise we need to always execute the `.exec()` method in all query methods: `Model.find()`, `Model.findById()`, `Model.findOne()`
+
+```js
+const users = await db.User.find({}).exec();
+```
+
+#### Lean Documents
+
+Mongoose queries return Mongoose documents which have several helper methods. This means that if we just need the JSON information of the document we should execute the `.lean()` method to convert the document to an object.
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" }).exec();
+
+logger.debug(user); // the user info
+logger.debug(user.comparePassword);
+logger.debug(user.save);
+```
+
+```bash
+{
+  speaks: [ 'catalan', 'spanish' ],
+  _id: 5ff03c698ad8311755d9ebe8,
+  firstName: 'Margaret',
+  lastName: 'Watkins',
+  email: 'edde@kodbi.eh',
+  password: '$2b$12$caJhrfqx2Ko9wUt5IGsrWeTgTZvRcqsXukylXxrSy2FxtAwnYKHBO',
+  createdAt: 2021-01-02T09:27:05.971Z,
+  updatedAt: 2021-01-02T09:27:05.971Z,
+  __v: 0
+}
+[Function: comparePassword]
+[Function (anonymous)]
+```
+
+If we execute the `.lean()` method before calling `.exec()` the methods will no longer be available because the document is now just JSON.
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" }).lean().exec();
+
+logger.debug(user); // the user info
+logger.debug(user.comparePassword);
+logger.debug(user.save);
+```
+
+```bash
+{
+  speaks: [ 'catalan', 'spanish' ],
+  _id: 5ff03c698ad8311755d9ebe8,
+  firstName: 'Margaret',
+  lastName: 'Watkins',
+  email: 'edde@kodbi.eh',
+  password: '$2b$12$caJhrfqx2Ko9wUt5IGsrWeTgTZvRcqsXukylXxrSy2FxtAwnYKHBO',
+  createdAt: 2021-01-02T09:27:05.971Z,
+  updatedAt: 2021-01-02T09:27:05.971Z,
+  __v: 0
+}
+undefined
+undefined
+```
+
+#### Projection
+
+We can also use projection with mongoose queries.
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" })
+  .select({
+    firstName: 1,
+    lastName: 1,
+  })
+  .lean()
+  .exec();
+
+logger.debug(user);
+```
+
+```bash
+{
+  _id: 5ff03d3749f2f81fc9e1e97f,
+  firstName: 'Margaret',
+  lastName: 'Watkins'
+}
+```
+
+Another way of using project is with the shorthand version:
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" })
+  .select("firstName lastName")
+  .lean()
+  .exec();
+```
+
+```bash
+{
+  _id: 5ff03d8475f9a422fd993d18,
+  firstName: 'Margaret',
+  lastName: 'Watkins'
+}
+```
+
+Shorthand version of excluding elements:
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" })
+  .select("-password -__v -speaks -createdAt -updatedAt")
+  .lean()
+  .exec();
+```
+
+```bash
+{
+  _id: 5ff03dcbbb7ede25f4eb437d,
+  firstName: 'Margaret',
+  lastName: 'Watkins',
+  email: 'edde@kodbi.eh'
+}
+```
+
+#### Sorting
+
+We can sort results using the `.sort()` method.
+
+```js
+const user = await db.User.find({})
+  .select("firstName")
+  .sort({ firstName: 1 })
+  .lean()
+  .exec();
+```
+
+```bash
+[
+  { _id: 5ff03e22ff55232989a60be6, firstName: 'Alta' },
+  { _id: 5ff03e22ff55232989a60be7, firstName: 'Darrell' },
+  { _id: 5ff03e22ff55232989a60be3, firstName: 'Jordan' },
+  { _id: 5ff03e22ff55232989a60be5, firstName: 'Mable' },
+  { _id: 5ff03e22ff55232989a60be4, firstName: 'Margaret' },
+  { _id: 5ff03e22ff55232989a60be8, firstName: 'Ryan' }
+]
+```
+
+#### Pagination
+
+In order to paginate results we can use the `.skip()` and `.limit()` methods
+
+##### `.limit()`
+
+```js
+const user = await db.User.find({})
+  .select("firstName")
+  .sort({ firstName: 1 })
+  .limit(2)
+  .lean()
+  .exec();
+```
+
+```bash
+[
+  { _id: 5ff03eae764c7e2f89acc440, firstName: 'Alta' },
+  { _id: 5ff03eae764c7e2f89acc441, firstName: 'Darrell' }
+]
+```
+
+##### `.skip()`
+
+```js
+const user = await db.User.find({})
+  .select("firstName")
+  .sort({ firstName: 1 })
+  .skip(2)
+  .limit(2)
+  .lean()
+  .exec();
+```
+
+```bash
+[
+  { _id: 5ff03ed67d03c831390b37dd, firstName: 'Jordan' },
+  { _id: 5ff03ed67d03c831390b37df, firstName: 'Mable' }
+]
+```
+
+### Updating Documents
+
+Mongoose provides several methods to update documents.
+
+- `Model.findByIdAndUpdate()`
+- `Model.findOneAndReplace()`
+- `Model.findOneAndUpdate()`
+- `Model.replaceOne()`
+- `Model.updateMany()`
+- `Model.updateOne()`
+
+#### `Model.findByIdAndUpdate()`
+
+With this method we can find a document by its `_id` and update some fields.
+
+```js
+const users = await db.User.find({});
+const user = await db.User.findByIdAndUpdate(users[0]._id, {
+  $set: { firstName: "MODIFIED" },
+});
+
+logger.debug(users[0]);
+logger.debug(user);
+```
+
+```bash
+[
+  {
+    speaks: [ 'german', 'english' ],
+    _id: 5ff041b56c91854f982cf3c5,
+    firstName: 'Mable',
+    lastName: 'Schneider',
+    email: 'ba@wuf.ws',
+    password: '$2b$12$LAp/TBEGIFiCezXdsX7lveDq6borLARKs3gBUvaPUor3n1hQe3NiW',
+    createdAt: 2021-01-02T09:49:41.807Z,
+    updatedAt: 2021-01-02T09:49:41.807Z,
+    __v: 0
+  }
+  ...
+]
+
+{
+  speaks: [ 'german', 'english' ],
+  _id: 5ff041b56c91854f982cf3c5,
+  firstName: 'Mable',
+  lastName: 'Schneider',
+  email: 'ba@wuf.ws',
+  password: '$2b$12$LAp/TBEGIFiCezXdsX7lveDq6borLARKs3gBUvaPUor3n1hQe3NiW',
+  createdAt: 2021-01-02T09:49:41.807Z,
+  updatedAt: 2021-01-02T09:49:41.807Z,
+  __v: 0
+}
+```
+
+However, if we look at the `firstName` field it is still not modified. This happens because the document has been modified in the database but the method doesn't return the updated document. To fix this we need to provide the following command:
+
+```js
+{ new: true }
+```
+
+```js
+const user = await db.User.findByIdAndUpdate(
+  users[0]._id,
+  {
+    $set: { firstName: "MODIFIED" },
+  },
+  {
+    new: true,
+    projection: {
+      firstName: 1,
+    },
+  },
+);
+```
+
+Now the `firstName` field reflects the updated value.
+
+```bash
+{ _id: 5ff04268d4f3745709f8764c, firstName: 'MODIFIED' }
+```
+
+#### `Model.findOneAndUpdate()`
+
+This method allows us to find a document and modify it. The difference between the `Model.findOneAndUpdate()` method and the `Model.updateOne()` one is that `findOneAndUpdate()` returns the modified document while `updateOne()` doesn't.
+
+```js
+const user = await db.User.findOneAndUpdate(
+  { firstName: "Margaret" },
+  {
+    $set: { firstName: "Someone Else" },
+  },
+  {
+    new: true,
+    projection: {
+      firstName: 1,
+    },
+  },
+);
+```
+
+```bash
+{ _id: 5ff043ec3393c86709c734e0, firstName: 'Someone Else' }
+```
+
+#### `Model.updateOne()`
+
+```js
+const user = await db.User.updateOne(
+  { firstName: "Margaret" },
+  {
+    $set: { firstName: "Someone Else" },
+  },
+);
+```
+
+```bash
+{ n: 1, nModified: 1, ok: 1 }
+```
+
+#### `Model.updateMany()`
+
+```js
+const user = await db.User.updateMany(
+  {
+    speaks: ["catalan", "spanish"],
+  },
+  [
+    {
+      $set: { isNative: true },
+    },
+  ],
+);
+
+const users = await db.User.find({ isNative: true }).select("isNative");
+```
+
+```bash
+{ n: 1, nModified: 1, ok: 1 }
+[ { _id: 5ff046c69a3c048516cce1c6, isNative: true } ]
+```
+
+#### `upsert: true`
+
+The `upsert` option allows us to create a document if it doesn't exist.
+
+When you specify the option `upsert: true`:
+
+- If document(s) match the query criteria, the method performs an update.
+- If no document matches the query criteria, the method inserts a single document.
+
+However, when using Mongoose validation in schemas it is important to keep in mind that the validation rules won't be triggered when using upsert. To validate the values entered you will need to use the `document.validate()` method.
+
+```js
+const user = await db.User.findOneAndUpdate(
+  {
+    firstName: "  Antonio  ",
+  },
+  {
+    $push: { speaks: "italian" },
+  },
+  {
+    upsert: true,
+    new: true,
+  },
+);
+
+logger.debug(user);
+
+try {
+  await user.validate();
+} catch (error) {
+  logger.error(error.errors.lastName.message);
+  logger.error(error.errors.email.message);
+  logger.error(error.errors.password.message);
+}
+```
+
+The document was created with just part of the required fields, therefore the `validate()` method will throw an error for each missing field.
+
+```bash
+{
+  speaks: [ 'italian' ],
+  _id: 5ff0a7462b5833e88f16becd,
+  firstName: 'Antonio',
+  __v: 0,
+  createdAt: 2021-01-02T17:03:02.234Z,
+  updatedAt: 2021-01-02T17:03:02.234Z
+}
+The last name is required
+The email is required
+The password is required
+```
+
+### Document Removal Methods
+
+Mongoose also offers several methods to remove documents.
+
+**You should use the `.findXAndDelete()` methods instead of the `.findXAndRemove()` methods because they are more performant**
+
+Again, the `.findX` methods return the document found, if any.
+
+- `Model.findByIdAndDelete()`
+- `Model.findByIdAndRemove()`
+- `Model.findOneAndDelete()`
+- `Model.findOneAndRemove()`
+- `Model.deleteMany()`
+- `Model.deleteOne()`
+
+#### `Model.findOneAndDelete()`
+
+```js
+const user = await db.User.findOneAndDelete({ firstName: "Ryan" });
+```
+
+```bash
+{
+  speaks: [ 'english', 'spanish' ],
+  _id: 5ff0a9b82b296a7af888e1c4,
+  firstName: 'Ryan',
+  lastName: 'McGuire',
+  email: 'beta@houboem.py',
+  password: '$2b$12$4tOKRRzJGxMTYLULAqh1e.Mo7NtEEyWSzew2mEXoaiYyw6Q7xb9zS',
+  createdAt: 2021-01-02T17:13:28.640Z,
+  updatedAt: 2021-01-02T17:13:28.640Z,
+  __v: 0
+}
+```
+
+#### `Model.deleteOne()`
+
+```js
+const user = await db.User.deleteOne({ firstName: "Ryan" });
+```
+
+```bash
+{ n: 1, ok: 1, deletedCount: 1 }
+```
+
+## CRUD Methods With Mongoose Exercises
+
+The test suites for these exercises can be executed with the following script: `npm run test:02:crud`.
+
+Open the files indicated bellow and read the instructions and requirements of the tests to solve them.
+
+- Once you are done the instructor will solve each step
+- If you get stuck you can find the answers in the `02-mongoose-crud-exercises-solution` branch
+- Try not to peek at the solutions and solve them with your pair programming partner
+- To finish this part you have 20 minutes
+
+### Complete the code of the CRUD methods in the `/src/controllers/crud-methods.js` file
+
+- **Test suite:** "mongoose crud methods"
+
+### Viewing the Results
+
+If you want to see the result of each function call remember that you will need to first connect to the database and then you will be able to perform operations against it.
+
+**To do so you will have to complete all the steps in the `/src/controllers/crud-methods.js` file:**
+
+1. connect to the DB using the `connect()` function
+2. seed the DB with users using the `seedUsers` function
+3. run the `/src/controllers/crud-methods.js` file with nodemon (for live reload)
+
+You can use the following code to see the results, besides relying on the tests.
+
+```js
+// /src/controllers/crud-methods.js
+const db = require("../models");
+const { logger } = require("../config/config");
+const connect = require("../db/connect");
+const { seedUsers } = require("../db/seed");
+
+async function init() {
+  await connect();
+  await seedUsers();
+
+  const solution1 = await findUserByLastName();
+  logger.debug(solution1);
+
+  const solution2 = await findUserByEmailAndProjectFields();
+  logger.debug(solution2);
+
+  const solution3 = await getUserEmails();
+  logger.debug(solution3);
+
+  const solution4 = await getFirst3FirstNames();
+  logger.debug(solution4);
+
+  const solution5 = await getUpdatedEmail();
+  logger.debug(solution5);
+
+  const solution6 = await getRemovedUser();
+  logger.debug(solution6);
+}
+
+// this executes the function when run with nodemon
+init();
+```
 
 ## Author <!-- omit in toc -->
 
