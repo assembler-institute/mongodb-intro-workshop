@@ -52,6 +52,10 @@ function setupTestServer() {
     await mongoose.connection.db.collection("users").deleteMany({});
   }
 
+  async function clearSongsCollection() {
+    await mongoose.connection.db.collection("songs").deleteMany({});
+  }
+
   async function stopTestServer() {
     await mongoose.disconnect();
     await SERVER.stop();
@@ -61,6 +65,7 @@ function setupTestServer() {
     initTestServer: initTestServer,
     debugTestServer: debugTestServer,
     clearUsersCollection: clearUsersCollection,
+    clearSongsCollection: clearSongsCollection,
     stopTestServer: stopTestServer,
   };
 }

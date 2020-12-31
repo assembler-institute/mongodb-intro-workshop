@@ -26,6 +26,8 @@ In this workshop you will learn how to build backend apps with Node.js, MongoDB 
 - [Mongoose Schema Exercises](#mongoose-schema-exercises)
 - [CRUD Methods With Mongoose](#crud-methods-with-mongoose)
 - [CRUD Methods With Mongoose Exercises](#crud-methods-with-mongoose-exercises)
+- [Relations in Mongoose](#relations-in-mongoose)
+- [Mongoose Relations Exercises](#mongoose-relations-exercises)
 
 ## Getting Started
 
@@ -2324,6 +2326,324 @@ async function init() {
 // this executes the function when run with nodemon
 init();
 ```
+
+## Relations in Mongoose
+
+With Mongoose it is very easy to create relations between Models. These can be `1-1`, `1-N`, `N-N`, etc, just like SQL.
+
+However, we can also integrate all the information in the same document.
+
+For example, if we want to store the comments that a user has made we could:
+
+1. **Use a nested document that holds all the comments**
+
+```json
+{
+  "_id": "ead0e93b-8dbf-5eac-b102-118a7a697e5a",
+  "firstName": "Jackson",
+  "lastName": " Kennedy",
+  "comments": [
+    {
+      "_id": "1c00d7fd-67c3-5e4f-aed1-46f5d290bb02",
+      "title": "Adipisicing deserunt ad eu do in dolore sint consequat.",
+      "body": "Excepteur velit enim ullamco adipisicing nisi proident. Laborum occaecat veniam dolor velit id Lorem incididunt."
+    },
+    {
+      "_id": "9d973e31-b3c1-5961-a7e0-9948423f9918",
+      "title": "Labore tempor officia ad labore est magna et eu aliqua aliquip sunt consequat elit.",
+      "body": "Sint occaecat aliqua exercitation velit elit exercitation aliqua qui duis qui deserunt. Enim ullamco id esse amet."
+    },
+    {
+      "_id": "76d7fa8e-545e-584f-a0e1-626e4e557b8b",
+      "title": "Ullamco sit veniam ex enim dolore minim eu Lorem veniam mollit minim magna eu fugiat.",
+      "body": "Eiusmod occaecat dolor eiusmod amet adipisicing duis occaecat deserunt est officia aliquip voluptate in."
+    },
+    {
+      "_id": "e93ebd6b-f864-5a48-a200-ae5ea62c6140",
+      "title": "Amet minim aliquip aute anim nisi eiusmod mollit dolore.",
+      "body": "Sit nulla et duis occaecat dolore nisi fugiat exercitation excepteur."
+    }
+  ]
+}
+```
+
+2. **Use a different collection that stores the comments and link the with an `_id` in the user document**
+
+```json
+{
+  "_id": "ead0e93b-8dbf-5eac-b102-118a7a697e5a",
+  "firstName": "Jackson",
+  "lastName": " Kennedy",
+  "comments": [
+    "1c00d7fd-67c3-5e4f-aed1-46f5d290bb02",
+    "9d973e31-b3c1-5961-a7e0-9948423f9918",
+    "76d7fa8e-545e-584f-a0e1-626e4e557b8b",
+    "e93ebd6b-f864-5a48-a200-ae5ea62c6140"
+  ]
+}
+```
+
+The drawbacks or benefits of each approach depend on the needs of your application.
+
+The fist thing to keep in mind is that the maximum size of a single document in MongDB is **16MB**. Therefore, if the user has many comments, it might exceed this size. On the other hand, if the size of the relation data will always be small and we always show it when we query for the document, it might be worth storing it in the document itself rather than in a separate collection.
+
+### Create a Books Model
+
+To showcase relations in Mongoose and MongoDB we will use a Books collection that has the following fields:
+
+```
+Books: {
+  title: String
+  author: User
+  genre: String
+  year: Number
+  pages: Number
+  stats: {
+    upVotes: Number
+    downVotes: Number
+  }
+}
+```
+
+We can create a BookSchema and Model in the `src/models/book-model.js` file.
+
+#### `1-1` Relation
+
+The main field of the model is the `author` one which shows how to create a `ref` to another collection:
+
+```js
+const BookSchema = new mongoose.Schema({
+  author: {
+    type: mongoose.SchemaTypes.ObjectId,
+    required: true,
+    ref: "user",
+  },
+});
+```
+
+In this case we are creating a `1-1` relation between the User as the `author` of the book.
+
+#### `1-Many` Relation
+
+If we wanted to create a `1-Many` relation on the User model as the author of many books we could do the following:
+
+```js
+const UserSchema = new mongoose.Schema({
+  books: [
+    {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: "book",
+    },
+  ],
+});
+```
+
+#### Showing the Created Documents
+
+Once we have created the Book Model and Schema we can insert some documents.
+
+```js
+// src/models/book-model.js
+const mongoose = require("mongoose");
+
+const BookSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  author: {
+    type: mongoose.SchemaTypes.ObjectId,
+    required: true,
+    ref: "user",
+  },
+  genre: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  year: {
+    type: Number,
+    required: true,
+  },
+  pages: {
+    type: Number,
+    required: true,
+  },
+  stats: {
+    type: Object,
+    default: {
+      upVotes: 0,
+      downVotes: 0,
+    },
+    upVotes: {
+      type: Number,
+    },
+    downVotes: {
+      type: Number,
+    },
+  },
+});
+
+const BookModel = new mongoose.model("book", BookSchema);
+
+module.exports = BookModel;
+```
+
+```js
+// src/controllers/book-controller.js
+const db = require("../models");
+const { seedBooks, seedUsers } = require("../db/seed");
+const connect = require("../db/connect");
+const { logger } = require("../config/config");
+
+async function books() {
+  // first connect to the DB
+  await connect();
+  // then insert some users
+  await seedUsers();
+  // then insert some books
+  // first insert the users because the books will query for a user id
+  await seedBooks();
+
+  const books = await db.Book.find({}).limit(2);
+
+  logger.debug(books);
+}
+
+books();
+```
+
+If we look at the documents that were created we can see that they have all the fields. However the author data only has the `_id` because we need to `populate` fields that have relations to other collections if we want to see the entire document or a subset of it.
+
+```bash
+[
+  {
+    stats: { upVotes: 0, downVotes: 0 },
+    _id: 5ff18f38310517ed96dd921c,
+    title: 'Incubus Sky',
+    author: 5ff18f38310517ed96dd9216,
+    genre: 'Fantasy',
+    year: 2010,
+    pages: 220,
+    __v: 0
+  },
+  {
+    stats: { upVotes: 0, downVotes: 0 },
+    _id: 5ff18f38310517ed96dd921d,
+    title: 'The Twilight Wanderer',
+    author: 5ff18f38310517ed96dd9219,
+    genre: 'Fantasy',
+    year: 2012,
+    pages: 300,
+    __v: 0
+  }
+]
+```
+
+#### Populating Referenced Collections
+
+To populate the author document we can use the `.populate()` method when executing a query.
+
+```js
+const books = await db.Book.findOne({ title: "The Twilight Wanderer" })
+  .limit(2)
+  .populate("author");
+```
+
+This will return all the fields of the document we populate.
+
+```bash
+{
+  stats: { upVotes: 0, downVotes: 0 },
+  _id: 5ff18f91dc20eef1669425cc,
+  title: 'The Twilight Wanderer',
+  author: {
+    speaks: [ 'english', 'spanish' ],
+    _id: 5ff18f90dc20eef1669425c8,
+    firstName: 'Alta',
+    lastName: 'Harris',
+    email: 'cuk@boeli.gn',
+    password: '$2b$12$fxB4pdPvUGcdZJABrslGze1mflXMWapiIQLM2BRLj2XO4nqOD5sRu',
+    createdAt: 2021-01-03T09:34:08.698Z,
+    updatedAt: 2021-01-03T09:34:08.698Z,
+    __v: 0
+  },
+  genre: 'Fantasy',
+  year: 2012,
+  pages: 300,
+  __v: 0
+}
+```
+
+If we want to use projection we can do it this way:
+
+```js
+const books = await db.Book.findOne({ title: "The Twilight Wanderer" })
+  .limit(2)
+  .populate({
+    path: "author",
+    select: {
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+    },
+  });
+```
+
+Result:
+
+```bash
+{
+  stats: { upVotes: 0, downVotes: 0 },
+  _id: 5ff18fe94970d2f517b89b5e,
+  title: 'The Twilight Wanderer',
+  author: {
+    _id: 5ff18fe94970d2f517b89b5a,
+    firstName: 'Alta',
+    lastName: 'Harris',
+    email: 'cuk@boeli.gn'
+  },
+  genre: 'Fantasy',
+  year: 2012,
+  pages: 300,
+  __v: 0
+}
+```
+
+If we wanted to populate a nested path inside a referenced collection we could use further `path` fields:
+
+```js
+const recipe = await db.Recipe.findById(recipeID)
+  .populate("author", "_id name lastname")
+  .populate({
+    path: "comments",
+    select: "-__v -id -createdAt -updatedAt",
+    options: { sort: { createdAt: -1 } },
+    populate: {
+      path: "author",
+      select: "_id name lastname",
+    },
+  })
+  .select("-__v")
+  .lean()
+  .exec();
+```
+
+## Mongoose Relations Exercises
+
+The test suites for these exercises can be executed with the following script: `npm run test:03:relations`.
+
+Open the files indicated bellow and read the instructions and requirements of the tests to solve them.
+
+- Once you are done the instructor will solve each step
+- If you get stuck you can find the answers in the `03-mongoose-relations-exercises-solution` branch
+- Try not to peek at the solutions and solve them with your pair programming partner
+- To finish this part you have 20 minutes
+
+### 1. Create the `Song` schema in the `/src/models/song-model.js` file
+
+- **Test suite:** "mongoose relations"
 
 ## Author <!-- omit in toc -->
 

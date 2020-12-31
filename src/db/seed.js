@@ -1,53 +1,32 @@
 const db = require("../models");
+const { getSeedUsers, getSeedBooks } = require("./seed-data");
 
 async function seedUsers() {
-  const users = [
-    {
-      firstName: "Jordan",
-      lastName: "Peterson",
-      email: "woga@wi.lu",
-      password: "jordan-super-password",
-      speaks: ["english", "javascript"],
-    },
-    {
-      firstName: "Margaret",
-      lastName: "Watkins",
-      email: "edde@kodbi.eh",
-      password: "margaret-super-password",
-      speaks: ["catalan", "spanish"],
-    },
-    {
-      firstName: "Mable",
-      lastName: "Schneider",
-      email: "ba@wuf.ws",
-      password: "mable-super-password",
-      speaks: ["german", "english"],
-    },
-    {
-      firstName: "Alta",
-      lastName: "Harris",
-      email: "cuk@boeli.gn",
-      password: "alta-super-password",
-      speaks: ["english", "spanish"],
-    },
-    {
-      firstName: "Darrell",
-      lastName: "Wilkerson",
-      email: "ecdescu@riwluzhok.pf",
-      password: "darrell-super-password",
-      speaks: ["english", "javascript"],
-    },
-    {
-      firstName: "Ryan",
-      lastName: "McGuire",
-      email: "beta@houboem.py",
-      password: "ryan-super-password",
-      speaks: ["english", "spanish"],
-    },
-  ];
+  const users = getSeedUsers();
 
   await db.User.deleteMany({});
   await db.User.create([...users]);
 }
 
-module.exports = { seedUsers: seedUsers };
+async function seedBooks() {
+  await Promise.all([db.User.deleteMany({}), db.Book.deleteMany({})]);
+
+  const users = await db.User.insertMany([...getSeedUsers()]);
+  const userIds = users.map((user) => user._id);
+  const booksWithAuthors = [...getSeedBooks()].map((book) => ({
+    ...book,
+    author: getRandomItem(userIds),
+  }));
+
+  return db.Book.insertMany(booksWithAuthors);
+}
+
+function getRandomItem(arr = []) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+module.exports = {
+  seedUsers: seedUsers,
+  seedBooks: seedBooks,
+  getRandomItem: getRandomItem,
+};
