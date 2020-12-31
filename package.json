@@ -10,6 +10,7 @@
   "private": "true",
   "main": "src/index.js",
   "scripts": {
+    "dev:workshop": "nodemon src/00-workshop-demo-files/index.js",
     "dev": "nodemon src/index.js"
   },
   "repository": {
@@ -17,9 +18,15 @@
     "url": "https://github.com/assembler-school/mongodb-intro-workshop.git"
   },
   "dependencies": {
+    "bcrypt": "^5.0.0",
+    "body-parser": "^1.19.0",
     "cross-env": "^7.0.3",
     "dotenv": "^8.2.0",
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "helmet": "^4.3.1",
+    "loglevel": "^1.7.1",
+    "mongoose": "^5.11.9",
+    "mongoose-beautiful-unique-validation": "^7.1.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.12.10",
@@ -30,6 +37,7 @@
     "babel-jest": "^26.6.3",
     "eslint": "^7.15.0",
     "jest": "^26.6.3",
+    "morgan": "^1.10.0",
     "nodemon": "^2.0.6",
     "prettier": "2.2.1",
     "supertest": "^6.0.1"

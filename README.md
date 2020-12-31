@@ -16,6 +16,9 @@ In this workshop you will learn how to build backend apps with Node.js, MongoDB 
 - [MongoDB Query Operators](#mongodb-query-operators)
 - [MongoDB Update Operators](#mongodb-update-operators)
 - [Removing Documents From MongoDB](#removing-documents-from-mongodb)
+- [mongoose](#mongoose)
+- [Node.js MVC Folder Structure](#nodejs-mvc-folder-structure)
+- [Connecting With mongoose](#connecting-with-mongoose)
 
 ## Getting Started
 
@@ -1017,6 +1020,247 @@ We can use some of the names with an `$in[]` filter to remove them from the data
 { "acknowledged" : true, "deletedCount" : 3 }
 > db.movies.find({ name: { $in: ["Grimm", "Lost Girl", "The Strain"] }}).count()
 0
+```
+
+## mongoose
+
+So far we have seen the benefits of using MongoDB as a database such as:
+
+- not having to defined a database or collection
+- not having to define a schema
+- ease of use
+
+However, in most modern apps we need some type of validation each time we enter data into the DB because we should follow the golden rule of: _**Never trust client side data**_.
+
+Furthermore, we also need to define some **minimum requirements for our collections** to ensure that, for example, we don’t create a user without an email in the correct format.
+
+Although in modern versions of MongoDB we can define a schema for our data, it is still much easier to do so using **mongoose**.
+
+### Types of Schemas in MongoDB
+
+#### Schemaless
+
+Documents don’t have the same fields and field types
+
+<table>
+<tr>
+<td><strong>User A</strong></td>
+<td><strong>User B</strong></td>
+</tr>
+<tr>
+<td>
+
+```json
+{
+  "name": "Bradley Ortiz",
+  "email": "brad@manguihi.ph",
+  "phone": "(751) 348-4041",
+  "age": "24"
+}
+```
+
+</td>
+<td>
+
+```json
+{
+  "firstName": "Ana",
+  "lastName": "Marks",
+  "phone-number": "(459) 559-7641",
+  "age": 33
+}
+```
+
+</td>
+</tr>
+</table>
+
+#### Some Type of Schema
+
+Documents share some fields and field types.
+
+<table>
+<tr>
+<td><strong>User A</strong></td>
+<td><strong>User B</strong></td>
+</tr>
+<tr>
+<td>
+
+```json
+{
+  "firstName": "Bradley",
+  "lastName": "Ortiz",
+  "email": "brad@manguihi.ph",
+  "phone": "(751) 348-4041",
+  "age": 24,
+  "address": null
+}
+```
+
+</td>
+<td>
+
+```json
+{
+  "firstName": "Ana",
+  "lastName": "Marks",
+  "email": "ana@somemail.in",
+  "phone-number": "(459) 559-7641",
+  "age": "33"
+}
+```
+
+</td>
+</tr>
+</table>
+
+#### Exact Type of Schema
+
+Documents share the same fields and field types.
+
+<table>
+<tr>
+<td><strong>User A</strong></td>
+<td><strong>User B</strong></td>
+</tr>
+<tr>
+<td>
+
+```json
+{
+  "firstName": "Bradley",
+  "lastName": "Ortiz",
+  "email": "brad@manguihi.ph",
+  "phone": "(751) 348-4041",
+  "age": 24,
+  "address": null
+}
+```
+
+</td>
+<td>
+
+```json
+{
+  "firstName": "Ana",
+  "lastName": "Marks",
+  "email": "ana@somemail.in",
+  "phone": "(459) 559-7641",
+  "age": 33,
+  "address": null
+}
+```
+
+</td>
+</tr>
+</table>
+
+## Node.js MVC Folder Structure
+
+Following the MVC pattern, this is a sample folder structure for developing backend applications using the MERN Stack.
+
+#### What is the _MERN_ Stack?
+
+_MERN_ stands for MongoDB, Express, React, Node, after the four key technologies that make up the stack.
+
+- **MongoDB** - document database
+- **Express.js** - Node.js web framework
+- **React.js** - a client-side JavaScript framework
+- **Node.js** - the premier JavaScript web server
+
+```bash
+├── ...
+└── src
+    ├── config
+    │   └── ...\.js
+    ├── controllers
+    │   └── user-controller.js
+    │   └── X-controller.js
+    ├── db
+    │   └── ...\.js
+    ├── middleware
+    │   └── X-middleware.js
+    ├── models
+    │   ├── index.js
+    │   └── user-model.js
+    │   └── X-model.js
+    ├── routes
+    │   └── user-routes.js
+    │   └── X-routes.js
+    ├── index.js
+    └── server.js
+```
+
+### Folders Used
+
+#### `controllers`
+
+Where we store the controllers used in the routes. These are responsible for return a response for each endpoint, usually they connect to the DB and fetch the data from it.
+
+#### `routes`
+
+Where we store the routes used in the endpoints of the app.
+
+#### `models`
+
+Where we store the mongoose models of the app.
+
+### Other Folder
+
+#### `config`
+
+Where we can store all the configuration files needed in the app.
+
+#### `middleware`
+
+Where we can store the middleware used in the app.
+
+#### `db`
+
+Where we can store the files related to the database.
+
+#### `server.js`
+
+The file that holds the express.js `app` exported for use in the `index.js` file and for easier testing.
+
+#### `index.js`
+
+The file that starts up the express.js `app`.
+
+## Connecting With mongoose
+
+The first thing we need to do is to connect to a MongoDB database using the mongoose `connect` method.
+
+```js
+mongoose.connect("mongodb://localhost:27017/workshop-db", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+```
+
+If you get any deprecation warnings in the terminal you should copy the properties mongo recommends adding to the connect method.
+
+```bash
+node:57382) DeprecationWarning: current URL string parser is deprecated, and will be removed in a future version. To use the new parser, pass option { useNewUrlParser: true } to MongoClient.connect.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:57382) DeprecationWarning: current Server Discovery and Monitoring engine is deprecated, and will be removed in a future version. To use the new Server Discover and Monitoring engine, pass option { useUnifiedTopology: true } to the MongoClient constructor.
+```
+
+One way of starting the connection to the database is to first connect to it and then start the express server in the `index.js` file.
+
+```js
+const app = require("./server");
+const config = require("./config/config");
+const connect = require("./db/connect");
+
+connect().then(() => {
+  config.logger.info(`DB connected`);
+
+  app.listen(config.app.PORT, () => {
+    config.logger.info(`Server running at http://localhost:${config.app.PORT}`);
+  });
+});
 ```
 
 ## Author <!-- omit in toc -->
