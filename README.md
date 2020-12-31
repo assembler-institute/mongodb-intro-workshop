@@ -19,6 +19,11 @@ In this workshop you will learn how to build backend apps with Node.js, MongoDB 
 - [mongoose](#mongoose)
 - [Node.js MVC Folder Structure](#nodejs-mvc-folder-structure)
 - [Connecting With mongoose](#connecting-with-mongoose)
+- [mongoose Schemas](#mongoose-schemas)
+- [Creating Documents](#creating-documents)
+- [Mongoose Schema Hooks](#mongoose-schema-hooks)
+- [Safer Way of Storing Passwords](#safer-way-of-storing-passwords)
+- [Mongoose Schema Exercises](#mongoose-schema-exercises)
 
 ## Getting Started
 
@@ -58,10 +63,10 @@ connecting to: mongodb://127.0.0.1:27017/?compressors=disabled&gssapiServiceName
 Implicit session: session { "id" : UUID("5087a5c3-90ae-4a3b-8039-4a9cec0baa21") }
 MongoDB server version: 4.2.6
 Server has startup warnings:
-2020-12-29T08:34:35.711+0100 I  CONTROL  [initandlisten]
-2020-12-29T08:34:35.712+0100 I  CONTROL  [initandlisten] ** WARNING: Access control is not enabled for the database.
-2020-12-29T08:34:35.712+0100 I  CONTROL  [initandlisten] **          Read and write access to data and configuration is unrestricted.
-2020-12-29T08:34:35.739+0100 I  CONTROL  [initandlisten]
+2020-11-29T08:34:35.711+0100 I  CONTROL  [initandlisten]
+2020-11-29T08:34:35.712+0100 I  CONTROL  [initandlisten] ** WARNING: Access control is not enabled for the database.
+2020-11-29T08:34:35.712+0100 I  CONTROL  [initandlisten] **          Read and write access to data and configuration is unrestricted.
+2020-11-29T08:34:35.739+0100 I  CONTROL  [initandlisten]
 ---
 Enable MongoDB's free cloud-based monitoring service, which will then receive and display
 metrics about your deployment (disk utilization, CPU, operation statistics, etc).
@@ -310,8 +315,8 @@ Using the `mongoimport` tool we can import a json file to populate the database.
 
 $ mongoimport src/mongodb/persons-data.json -d contact -c persons --jsonArray
 
-2020-12-30T14:43:43.287+0100    connected to: mongodb://localhost/
-2020-12-30T14:43:43.708+0100    5000 document(s) imported successfully. 0 document(s) failed to import.
+2020-11-30T14:43:43.287+0100    connected to: mongodb://localhost/
+2020-11-30T14:43:43.708+0100    5000 document(s) imported successfully. 0 document(s) failed to import.
 ```
 
 ### `> show dbs`
@@ -1233,6 +1238,7 @@ The file that starts up the express.js `app`.
 The first thing we need to do is to connect to a MongoDB database using the mongoose `connect` method.
 
 ```js
+// src/db/connect.js
 mongoose.connect("mongodb://localhost:27017/workshop-db", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -1242,14 +1248,20 @@ mongoose.connect("mongodb://localhost:27017/workshop-db", {
 If you get any deprecation warnings in the terminal you should copy the properties mongo recommends adding to the connect method.
 
 ```bash
-node:57382) DeprecationWarning: current URL string parser is deprecated, and will be removed in a future version. To use the new parser, pass option { useNewUrlParser: true } to MongoClient.connect.
+node:57382) DeprecationWarning: current URL string parser is deprecated,
+and will be removed in a future version. To use the new parser,
+pass option { useNewUrlParser: true } to MongoClient.connect.
 (Use `node --trace-deprecation ...` to show where the warning was created)
-(node:57382) DeprecationWarning: current Server Discovery and Monitoring engine is deprecated, and will be removed in a future version. To use the new Server Discover and Monitoring engine, pass option { useUnifiedTopology: true } to the MongoClient constructor.
+(node:57382) DeprecationWarning: current Server Discovery and
+Monitoring engine is deprecated, and will be removed in a future version.
+To use the new Server Discover and Monitoring engine,
+pass option { useUnifiedTopology: true } to the MongoClient constructor.
 ```
 
 One way of starting the connection to the database is to first connect to it and then start the express server in the `index.js` file.
 
 ```js
+// src/index.js
 const app = require("./server");
 const config = require("./config/config");
 const connect = require("./db/connect");
@@ -1262,6 +1274,452 @@ connect().then(() => {
   });
 });
 ```
+
+## mongoose Schemas
+
+Defining a MongoDB schema for a collection is very easy with mongoose.
+
+To define a schema we can use the `mongoose.Schema` constructor:
+
+```js
+const UserSchema = new mongoose.Schema({ ...properties });
+```
+
+Mongoose schemas can be of several primitive types that are available in Javascript and some that are from MongoDB:
+
+- String
+- Number
+- Date
+- Buffer
+- Boolean
+- Mixed
+- ObjectId
+- Array
+- Decimal128
+- Map
+
+```js
+// src/models/user-model.js
+const UserSchema = new mongoose.Schema({
+  name: {
+    type: String,
+  },
+  age: {
+    type: Number,
+  },
+});
+```
+
+We can specify the type of a property by using the `type` property or the shorthand version:
+
+```js
+// src/models/user-model.js
+const UserSchema = new mongoose.Schema({
+  name: String,
+  age: Number,
+});
+```
+
+Other schema options include the following:
+
+- `required`: if the property must have a value when creating a document or not
+- `lowercase`: boolean, whether to always call `.toLowerCase()` on the value
+- `uppercase`: boolean, whether to always call `.toUpperCase()` on the value
+- `trim`: boolean, whether to always call `.trim()` on the value
+- `enum`: Array, creates a validator that checks if the value is in the given array.
+- `minLength`: Number, creates a validator that checks if the value length is not less than the given number
+- `maxLength`: Number, creates a validator that checks if the value length is not greater than the given number
+
+### Schema Validation
+
+Besides adding just an option to a property in the schema we can also add a error message:
+
+```js
+// src/models/user-model.js
+const UserSchema = new mongoose.Schema({
+  password: {
+    type: String,
+    required: true,
+    trim: true,
+    minlength: [8, "The password is too short"],
+  },
+});
+```
+
+### Custom Validator
+
+We can also add a custom validator to the schema. The validator will be called with the value of the field when it is created and it should return `true` if it passes or `false` if it doesn't. Then, the custom message we provide will be thrown if it doesn't pass the validation.
+
+```js
+// src/models/user-model.js
+const mongoose = require("mongoose");
+const validator = require("validator");
+
+const UserSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true,
+    validate: {
+      validator: (value) => validator.isEmail(value),
+      message: (props) => `${props.value} is not a valid email address`,
+    },
+  },
+});
+```
+
+### Creating a Model
+
+Once we have defined the schema we can now create a model with it.
+
+```js
+const UserModel = new mongoose.model("user", UserSchema);
+```
+
+This creates a collection that has as a name the pluralized version of the first argument we pass to the `mongoose.model` constructor.
+
+### Complete Example of a User Schema
+
+```js
+// src/models/user-model.js
+const mongoose = require("mongoose");
+const validator = require("validator");
+
+const UserSchema = new mongoose.Schema(
+  {
+    firstName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    lastName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    age: Number,
+    developer: {
+      type: Boolean,
+      default: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      validate: {
+        validator: (value) => validator.isEmail(value),
+        message: (props) => `${props.value} is not a valid email address`,
+      },
+    },
+    password: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: [8, "The password is too short"],
+    },
+    activities: [
+      // Array have a default value of [] (empty array)
+      {
+        type: String,
+        enum: ["Programming", "Studying", "Ping Pong"],
+      },
+    ],
+  },
+  { timestamps: true },
+);
+
+const UserModel = new mongoose.model("user", UserSchema);
+
+module.exports = UserModel;
+```
+
+Then, once we have created the `User` schema we can import it in the `index.js` file in the `models` folder. This is the entry point to our database that we will use throughout the app.
+
+```js
+// src/models/index,js
+const UserModel = require("./user-model");
+
+module.exports = {
+  User: UserModel,
+};
+```
+
+## Creating Documents
+
+Based on the previous schema we can now try to create a document.
+
+```js
+// src/controllers/user-controller.js
+const { logger } = require("../config/config");
+const db = require("../models");
+const connect = require("../db/connect");
+
+(async () => {
+  // first we need to connect to the mongodb database
+  await connect();
+
+  // delete all the documents to avoid duplicate email errors
+  await db.User.deleteMany({});
+
+  try {
+    // create the document
+    const user = await db.User.create({
+      firstName: "alex",
+      lastName: "mark",
+      age: 20,
+      email: "humitsak@wamgo.com",
+      password: "266-1089-eula-stephens",
+      activities: "Programming",
+    });
+
+    logger.debug(user);
+  } catch (error) {
+    // catch any errors that appear
+    logger.error(error.errors);
+  }
+})();
+```
+
+If we look carefully we can also see that the `_id` field has been automatically created and that the `createdAt` and `updatedAt` fields have been added because we created the schema with the `{ timestamps: true }` option.
+
+Our new user document:
+
+```bash
+{
+  developer: true,
+  activities: [ 'Programming' ],
+  _id: 5fee135cac8cf687bf3b04fa,
+  firstName: 'alex',
+  lastName: 'mark',
+  age: 20,
+  email: 'humitsak@wamgo.com',
+  password: '266-1089-eula-stephens',
+  createdAt: 2020-11-31T18:07:24.337Z,
+  updatedAt: 2020-11-31T18:07:24.337Z,
+  __v: 0
+}
+```
+
+If we try to create a document with missing or invalid fields we would get an error.
+
+```js
+try {
+  // create the document
+  const user = await db.User.create({
+    firstName: "alex",
+    // lastName: "mark",
+    age: 20,
+    email: "humitsak@wamgo.com",
+    password: "266-1089-eula-stephens",
+    activities: "Programming",
+  });
+
+  logger.debug(user);
+} catch (error) {
+  // catch any errors that appear
+  logger.error(error.errors);
+}
+```
+
+Error message:
+
+```bash
+{
+  lastName: ValidatorError: Path `lastName` is required.
+      at validate (/Users/mariandaniellucaci/_ignored_dropbox_folders/assembler/mongodb-intro-workshop/node_modules/mongoose/lib/schematype.js:1257:13)
+      at /Users/mariandaniellucaci/_ignored_dropbox_folders/assembler/mongodb-intro-workshop/node_modules/mongoose/lib/schematype.js:1240:7
+      at Array.forEach (<anonymous>)
+      at SchemaString.SchemaType.doValidate (/Users/mariandaniellucaci/_ignored_dropbox_folders/assembler/mongodb-intro-workshop/node_modules/mongoose/lib/schematype.js:1185:14)
+      at /Users/mariandaniellucaci/_ignored_dropbox_folders/assembler/mongodb-intro-workshop/node_modules/mongoose/lib/document.js:2501:18
+      at processTicksAndRejections (node:internal/process/task_queues:75:11) {
+    properties: {
+      validator: [Function (anonymous)],
+      message: 'Path `lastName` is required.',
+      type: 'required',
+      path: 'lastName',
+      value: undefined
+    },
+    kind: 'required',
+    path: 'lastName',
+    value: undefined,
+    reason: undefined,
+    [Symbol(mongoose:validatorError)]: true
+  }
+}
+```
+
+Or a user with an invalid email:
+
+```js
+try {
+  // create the document
+  const user = await db.User.create({
+    firstName: "alex",
+    lastName: "mark",
+    age: 20,
+    email: 1,
+    password: "266-1089-eula-stephens",
+    activities: "Programming",
+  });
+
+  logger.debug(user);
+} catch (error) {
+  // catch any errors that appear
+  logger.error(error.errors);
+}
+```
+
+Error message:
+
+```bash
+{
+  email: ValidatorError: 1 is not a valid email address
+      at validate (/Users/mariandaniellucaci/_ignored_dropbox_folders/assembler/mongodb-intro-workshop/node_modules/mongoose/lib/schematype.js:1257:13)
+      at /Users/mariandaniellucaci/_ignored_dropbox_folders/assembler/mongodb-intro-workshop/node_modules/mongoose/lib/schematype.js:1240:7
+      at Array.forEach (<anonymous>)
+      at SchemaString.SchemaType.doValidate (/Users/mariandaniellucaci/_ignored_dropbox_folders/assembler/mongodb-intro-workshop/node_modules/mongoose/lib/schematype.js:1185:14)
+      at /Users/mariandaniellucaci/_ignored_dropbox_folders/assembler/mongodb-intro-workshop/node_modules/mongoose/lib/document.js:2501:18
+      at processTicksAndRejections (node:internal/process/task_queues:75:11) {
+    properties: {
+      validator: [Function],
+      message: '1 is not a valid email address',
+      type: 'user defined',
+      path: 'email',
+      value: '1'
+    },
+    kind: 'user defined',
+    path: 'email',
+    value: '1',
+    reason: undefined,
+    [Symbol(mongoose:validatorError)]: true
+  }
+}
+```
+
+## Mongoose Schema Hooks
+
+On very powerful feature of mongoose schemas is that it allows us to execute some logic before or after a particular action takes place in our documents.
+
+```js
+schema.pre("validate", function () {
+  console.log("this gets printed first");
+});
+schema.post("validate", function () {
+  console.log("this gets printed second");
+});
+schema.pre("save", function () {
+  console.log("this gets printed third");
+});
+schema.post("save", function () {
+  console.log("this gets printed fourth");
+});
+```
+
+Other options include:
+
+- `findOneAndUpdate`
+- `updateOne`
+- `find`
+- `remove`
+- ...
+
+## Safer Way of Storing Passwords
+
+One major security issue we have so far is that we are storing the passwords in plain text in our database.
+
+```bash
+{
+  _id: 5fee135cac8cf687bf3b04fa,
+  ...
+  password: '266-1089-eula-stephens',
+  ...
+}
+```
+
+In order to solve this issue we can use the mongoose `.pre("save")` hook to modify the document before it is saved in the database.
+
+This way we can encrypt the password using the `bcrypt` package so that it is safer.
+
+```js
+// src/models/user-model.js
+UserSchema.pre("save", function userPreSaveHook(next) {
+  if (!this.isModified("password")) return next();
+
+  try {
+    const hash = await bcrypt.hash(this.password, 12);
+
+    this.password = hash;
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+});
+```
+
+Now, if we create the document again we can see that the password is encrypted.
+
+```bash
+{
+  _id: 5fee18fcaf6757c537bbc4fe,
+  ...
+  password: '$2b$12$OnNXMIQlIbTxZJy1Eh4xLuvwB7/9snZYXcHO3BA5x1Fu4ycamqLv6',
+  ...
+}
+```
+
+Then, when we want to compare the password for when the user wants to login, we can use another feature of mongoose schemas: schema methods.
+
+```js
+// src/models/user-model.js
+UserSchema.methods.comparePassword = function (candidate) {
+  return bcrypt.compare(candidate, this.password);
+};
+```
+
+Schema methods will be available on the document we create because every mongoose document has additional helper methods we can use.
+
+We can now use the `comparePassword()` method in the following way:
+
+```js
+const user = await db.User.create({
+  firstName: "alex",
+  lastName: "mark",
+  age: 20,
+  email: "humitsak@wamgo.com",
+  password: "266-1089-eula-stephens",
+  activities: "Programming",
+});
+
+const match = await user.comparePassword("266-1089-eula-stephens");
+
+console.log(match); // true
+```
+
+## Mongoose Schema Exercises
+
+The test suites for these exercises can be executed with the following script: `npm run test:01:schemas`.
+
+Open the files indicated bellow and read the instructions and requirements of the tests to solve them.
+
+- Once you are done the instructor will solve each step
+- If you get stuck you can find the answers in the `01-mongoose-schema-exercises-solution` branch
+- Try not to peek at the solutions and solve them with your pair programming partner
+- To finish this part you have 20 minutes
+
+### 1. Create the connection logic in the `/src/db/connect.js` file
+
+- **Test suite:** "1. the `connect` function calls `mongoose.connect` with the url and options"
+
+### 2. Create the `User` model in the `/src/models/user-model.js` file
+
+- **Test suite:** "2. create the 'User' model following the schema requirements"
+- **Test suite:** "3. encrypt the password before storing it in the database"
+- **Test suite:** "4. add a 'comparePassword' method to the 'User' schema"
 
 ## Author <!-- omit in toc -->
 
