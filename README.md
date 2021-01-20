@@ -1646,7 +1646,7 @@ This way we can encrypt the password using the `bcrypt` package so that it is sa
 
 ```js
 // src/models/user-model.js
-UserSchema.pre("save", function userPreSaveHook(next) {
+UserSchema.pre("save", async function userPreSaveHook(next) {
   if (!this.isModified("password")) return next();
 
   try {
