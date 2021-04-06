@@ -770,7 +770,7 @@ Just like the `$eq` operator, we can combine several search values without using
 
 Using the MongoDB Update Operators and the updateMany() or updateOne() methods we can easily find and modify documents.
 
-`$set, $inc, $dec, $min, $push, $pull, ...`
+`$set, $inc, $min, $push, $pull, ...`
 
 ### `$inc`
 
