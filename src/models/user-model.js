@@ -37,13 +37,60 @@ const bcrypt = require("bcrypt");
  * 2.6 with the "createdAt" and "updatedAt" properties that are created automatically
  */
 
-const UserSchema = new mongoose.Schema({});
+const UserSchema = new mongoose.Schema({
+    firstName: {
+        type: String,
+        required: [true, "The first name is required"],
+        trim: true,
+    },
+    lastName: {
+        type: String,
+        required: [true, "The last name is required"],
+        trim: true,
+    },
+    email: {
+        type: String,
+        required: [true, "The email is required"],
+        trim: true,
+        unique: true,
+        validate: {
+            validator: validator.isEmail,
+            message: (props) => `The email ${props.value} is not valid`,
+        },
+    },
+    password: {
+        type: String,
+        required: [true, "The password is required"],
+        minlength: [8, "The password is too short"],
+    },
+    speaks: {
+        type: [String],
+        enum: [
+            "english",
+            "spanish",
+            "catalan",
+            "german",
+            "italian",
+            "javascript",
+        ],
+    },
+});
 
 /**
  * 3. encrypt the password before storing it in the database
  *
  * Use a salt round of 12
  */
+
+UserSchema.pre("save", async function (next) {
+    const user = this;
+
+    if (user.isModified("password")) {
+        user.password = await bcrypt.hash(user.password, 12);
+    }
+
+    next();
+});
 
 /**
  * 4. add a 'comparePassword' method to the 'User' schema
@@ -52,5 +99,11 @@ const UserSchema = new mongoose.Schema({});
  */
 
 const UserModel = new mongoose.model("user", UserSchema);
+
+UserSchema.methods.comparePassword = async function (password) {
+    const user = this;
+
+    return await bcrypt.compare(password, user.password);
+};
 
 module.exports = UserModel;
