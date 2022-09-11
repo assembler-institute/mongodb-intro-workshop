@@ -91,6 +91,21 @@ const UserSchema = new mongoose.Schema(
  * Use a salt round of 12
  */
 
+UserSchema.pre('save', userPreSaveHook = async (next) => {
+  if(!this.isModified('password')){
+    return next();
+  }
+
+  try {
+    const hash = await bcrypt.hash(this.password, 12);
+    this.password = hash;
+    return next();
+
+  } catch (error) {
+    return next(error);
+  }
+})
+
 /**
  * 4. add a 'comparePassword' method to the 'User' schema
  *
@@ -98,5 +113,22 @@ const UserSchema = new mongoose.Schema(
  */
 
 const UserModel = new mongoose.model("user", UserSchema);
+
+UserSchema.methods.comparePassword = (candidate) => {
+  return bcrypt.compare(candidate, this.password);
+}
+
+const user = await db.User.create({
+  firstName: 'Michael',
+  lastName: 'Scott',
+  age: 40,
+  email: 'michaelscoot@dundermifflin.com',
+  password: '266-1089-eula-stephens',
+  activities: 'Programming',
+});
+
+const match = await user.comparePassword('266-1089-eula-stephens')
+
+console.log(match)
 
 module.exports = UserModel;
