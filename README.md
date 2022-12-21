@@ -57,7 +57,7 @@ You find the instructions on installing the MongoDB Community Server locally in 
 To verify that you have installed it correctly, you can run the following command from the terminal which should open the mongodb shell:
 
 ```bash
-$ mongo
+$ mongosh
 MongoDB shell version v4.2.6
 connecting to: mongodb://127.0.0.1:27017/?compressors=disabled&gssapiServiceName=mongodb
 Implicit session: session { "id" : UUID("5087a5c3-90ae-4a3b-8039-4a9cec0baa21") }
@@ -301,7 +301,6 @@ With this command we can see the help of the commands we can perform on a single
 DBCollection help
         db.persons.find().help() - show DBCursor help
         db.persons.bulkWrite( operations, <optional params> ) - ...
-        db.persons.count( query = {}, <optional params> ) - ...
         db.persons.countDocuments( query = {}, <optional params> ) - …
 ...
 ```
@@ -353,12 +352,12 @@ persons
 >
 ```
 
-### `> count()`
+### `> countDocuments()`
 
-Once you have imported all the data you can see if the database has been populated with the count() method.
+Once you have imported all the data you can see if the database has been populated with the countDocuments() method.
 
 ```bash
-> db.persons.count()
+> db.persons.countDocuments()
 5000
 ```
 
