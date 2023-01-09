@@ -37,13 +37,74 @@ const bcrypt = require("bcrypt");
  * 2.6 with the "createdAt" and "updatedAt" properties that are created automatically
  */
 
-const UserSchema = new mongoose.Schema({});
+const UserSchema = new mongoose.Schema(
+  {
+    firstName: {
+      type: String,
+      required: [true, "The first name is required"],
+      trim: true,
+    },
+
+    lastName: {
+      type: String,
+      required: [true, "The lastname is requited"],
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      required: [true, "The email is required"],
+      trim: true,
+      unique: true,
+      validate: {
+        validator: (value) => validator.isEmail(value),
+        message: (props) => `${props.value} is not a valid email address`,
+      },
+    },
+
+    password: {
+      type: String,
+      required: [true, "The password is required"],
+      minlength: [8, "The password is too short"],
+    },
+
+    speaks: [
+      {
+        type: String,
+        enum: [
+          "english",
+          "spanish",
+          "catalan",
+          "german",
+          "italian",
+          "javascript",
+        ],
+      },
+    ],
+  },
+  { timestamps: true },
+);
 
 /**
  * 3. encrypt the password before storing it in the database
  *
  * Use a salt round of 12
  */
+
+UserSchema.pre('save', userPreSaveHook = async (next) => {
+  if(!this.isModified('password')){
+    return next();
+  }
+
+  try {
+    const hash = await bcrypt.hash(this.password, 12);
+    this.password = hash;
+    return next();
+
+  } catch (error) {
+    return next(error);
+  }
+})
 
 /**
  * 4. add a 'comparePassword' method to the 'User' schema
@@ -52,5 +113,22 @@ const UserSchema = new mongoose.Schema({});
  */
 
 const UserModel = new mongoose.model("user", UserSchema);
+
+UserSchema.methods.comparePassword = (candidate) => {
+  return bcrypt.compare(candidate, this.password);
+}
+
+const user = await db.User.create({
+  firstName: 'Michael',
+  lastName: 'Scott',
+  age: 40,
+  email: 'michaelscoot@dundermifflin.com',
+  password: '266-1089-eula-stephens',
+  activities: 'Programming',
+});
+
+const match = await user.comparePassword('266-1089-eula-stephens')
+
+console.log(match)
 
 module.exports = UserModel;
