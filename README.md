@@ -826,6 +826,23 @@ We can easily set a new property of a document by just assigning a value to it. 
 { "_id" : ObjectId("5fec9a7c6a8ea453c3d1b62c"), "name" : "Bitten", "myNewProp" : 1000 }
 ```
 
+We can also create it for all documents with the following command, with a value of null.
+
+```bash
+> db.users.updateMany({}, {$set: {projects: null}})
+```
+or if you want to create an array
+```bash
+> db.users.updateMany({}, {$set: {projects: []}})
+```
+
+Note that if the 'projects' field already exists in some documents in the collection, this command will overwrite its existing value with null. If you want to only update documents that don't have the 'projects' field yet, you can add a condition to the query:
+
+```bash
+> db.users.updateMany({projects: {$exists: false}}, {$set: {projects: null}})
+```
+This command will only update documents in the users collection where the 'projects' field does not yet exist.
+
 ### `$rename`
 
 This operator allows us to change the property name of a document.
