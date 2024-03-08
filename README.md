@@ -1737,10 +1737,6 @@ Open the files indicated bellow and read the instructions and requirements of th
 - **Test suite:** "3. encrypt the password before storing it in the database"
 - **Test suite:** "4. add a 'comparePassword' method to the 'User' schema"
 
-## Author <!-- omit in toc -->
-
-[Dani Lucaci](https://github.com/danilucaci)
-
 ## License <!-- omit in toc -->
 
 [MIT](https://choosealicense.com/licenses/mit/)
